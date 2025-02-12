@@ -1,0 +1,119 @@
+name: onlyLandmark
+model:
+  base_learning_rate: 2.0e-06
+  target: ldm.models.diffusion.ddpm.LatentDiffusion
+  params:
+    ckpt_path: weights/stage2.ckpt
+    linear_start: 0.0015
+    linear_end: 0.0195
+    num_timesteps_cond: 1
+    log_every_t: 200
+    timesteps: 1000
+    first_stage_key: image
+    cond_stage_key: landmarkwithpre
+    conditioning:
+    - pre
+    - movement
+    - line
+    - landmark
+    image_size: 64
+    channels: 16
+    cond_stage_trainable: true
+    concat_mode: true
+    conditioning_key: hybrid
+    monitor: val/loss_simple_ema
+    unet_config:
+      target: ldm.modules.diffusionmodules.openaimodel.UNetModel
+      params:
+        image_size: 128
+        in_channels: 18
+        out_channels: 16
+        model_channels: 192
+        attention_resolutions:
+        - 32
+        - 16
+        - 8
+        num_res_blocks: 2
+        channel_mult:
+        - 1
+        - 2
+        - 4
+        - 4
+        - 8
+        num_head_channels: 32
+        use_spatial_transformer: true
+        transformer_depth: 1
+        context_dim: 640
+    first_stage_config:
+      target: ldm.models.autoencoder.VQModelInterface
+      params:
+        ckpt_path: weights/stage1.ckpt
+        monitor: val/rec_loss
+        embed_dim: 16
+        n_embed: 8192
+        ddconfig:
+          double_z: false
+          z_channels: 8
+          resolution: 1024
+          in_channels: 1
+          out_ch: 1
+          ch: 64
+          ch_mult:
+          - 1
+          - 2
+          - 4
+          - 4
+          - 8
+          num_res_blocks: 2
+          attn_resolutions:
+          - 32
+          - 16
+          - 8
+          dropout: 0.0
+        lossconfig:
+          target: torch.nn.Identity
+    cond_stage_config:
+      target: ldm.modules.encoders.modules.LandmarkEmbedderv2
+      params:
+        args:
+          num_hidden_blocks: 2
+          num_hidden_layers: 1
+          landmark_n_node: 45
+          movement_n_node: 24
+          input_dim: 2
+          output_dim: 640
+          hidden_dim:
+          - 64
+          - 32
+          activation: Tanh
+          act_negative: None
+          is_residual: false
+          bn: true
+          atn: false
+          num_head: 1
+          dropout: 0
+          n_stages: 4
+          conditioning:
+          - pre
+          - movement
+          - line
+          - landmark
+data:
+  target: main.DataModuleFromConfig
+  params:
+    batch_size: 5
+    num_workers: 4
+    wrap: true
+    validation:
+      target: ldm.data.dental_registration.DentalValidation
+      params:
+        conditioning:
+        - pre
+        - movement
+        - line
+        - landmark
+        data_path: data/
+        size: 1024
+        crop_size: 1024
+        image: true
+        threshold: 1.0
