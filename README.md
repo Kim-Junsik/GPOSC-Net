@@ -13,7 +13,7 @@ To run GPOSC-Net, use the following commands:
 
 ### Inference & Prediction 
 ```bash
-python main.py
+python inference.py
 ```
 Generates predicted post-operative lateral cephalograms based on pre-operative data.
 The resulting images are saved in the specified output directory.
